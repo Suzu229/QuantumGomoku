@@ -1,0 +1,10 @@
+C:\Users\suzur\source\QuantumGomoku\QuantumGomoku\bin\Debug\QuantumGomoku.exe.config
+C:\Users\suzur\source\QuantumGomoku\QuantumGomoku\bin\Debug\QuantumGomoku.exe
+C:\Users\suzur\source\QuantumGomoku\QuantumGomoku\bin\Debug\QuantumGomoku.pdb
+C:\Users\suzur\source\QuantumGomoku\QuantumGomoku\obj\Debug\QuantumGomoku.csproj.AssemblyReference.cache
+C:\Users\suzur\source\QuantumGomoku\QuantumGomoku\obj\Debug\QuantumGomoku.Form1.resources
+C:\Users\suzur\source\QuantumGomoku\QuantumGomoku\obj\Debug\QuantumGomoku.Properties.Resources.resources
+C:\Users\suzur\source\QuantumGomoku\QuantumGomoku\obj\Debug\QuantumGomoku.csproj.GenerateResource.cache
+C:\Users\suzur\source\QuantumGomoku\QuantumGomoku\obj\Debug\QuantumGomoku.csproj.CoreCompileInputs.cache
+C:\Users\suzur\source\QuantumGomoku\QuantumGomoku\obj\Debug\QuantumGomoku.exe
+C:\Users\suzur\source\QuantumGomoku\QuantumGomoku\obj\Debug\QuantumGomoku.pdb

@@ -15,6 +15,17 @@ namespace QuantumGomoku
         public Form1()
         {
             InitializeComponent();
+
+            var board = new GomokuBoardControl();
+            board.Location = new Point(0, 0);
+            this.Controls.Add(board);
+
+            // フォームのクライアントサイズをぴったり合わせる
+            this.ClientSize = board.Size;
+
+            // ウィンドウサイズを固定する（リサイズ禁止）
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
         }
     }
 }

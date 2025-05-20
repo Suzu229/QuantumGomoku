@@ -27,6 +27,8 @@ namespace QuantumGomoku
         private const int CellSize = 30;        // 1マスのサイズ（ピクセル）
         private const int Margin = 30;          // 碁盤の外枠マージン
 
+        private bool isLocked = false;
+
         public int TotalSize => Margin * 2 + CellSize * (GridSize - 1);
 
         public GomokuBoardControl()
@@ -78,7 +80,7 @@ namespace QuantumGomoku
                 {
                     int cx = Margin + col * CellSize;
                     int cy = Margin + row * CellSize;
-                    g.FillEllipse(Brushes.Black, cx - 3, cy - 3, 6, 6); // 半径3px
+                    g.FillEllipse(Brushes.Black, cx - 3, cy - 3, 6, 6);
                 }
             }
 
@@ -87,34 +89,16 @@ namespace QuantumGomoku
                 int cx = Margin + stone.Col * CellSize;
                 int cy = Margin + stone.Row * CellSize;
 
-                Color fill = stone.Color == "black" ? Color.Black : Color.White;
-                Brush brush = new SolidBrush(fill);
-                Brush textBrush = stone.Color == "black" ? Brushes.White : Brushes.Black;
-
-                // 円（石）を描く
-                g.FillEllipse(brush, cx - 12, cy - 12, 24, 24);
-                g.DrawEllipse(Pens.Black, cx - 12, cy - 12, 24, 24);
-
-                // 数字を中央に描く
-                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString(stone.Probability.ToString(), new Font("Arial", 10, FontStyle.Bold), textBrush, cx, cy, sf);
-            }
-
-            foreach (var stone in stones)
-            {
-                int cx = Margin + stone.Col * CellSize;
-                int cy = Margin + stone.Row * CellSize;
-
-                // 石の色を確率に応じて設定
+                // 色の決定
                 Color stoneColor;
                 Brush textBrush;
 
-                if (stone.Probability == 100) // 観測中（仮確定）なら真っ黒／真っ白
+                if (stone.IsObserved)
                 {
                     stoneColor = (stone.Color == "black") ? Color.Black : Color.White;
                     textBrush = (stone.Color == "black") ? Brushes.White : Brushes.Black;
                 }
-                else // 通常時：確率に応じた濃さ
+                else
                 {
                     if (stone.Color == "black")
                     {
@@ -130,25 +114,31 @@ namespace QuantumGomoku
                     }
                 }
 
+                // 石を塗る
                 Brush stoneBrush = new SolidBrush(stoneColor);
-
-                // 円（石）を描画
                 g.FillEllipse(stoneBrush, cx - 12, cy - 12, 24, 24);
-                g.DrawEllipse(Pens.Black, cx - 12, cy - 12, 24, 24);
 
-                // 観測中は数字を消す（probability = 100 のとき）
-                if (stone.Probability != 100)
+                // 枠線（勝利石は赤）
+                var borderPen = stone.IsWinningStone ? Pens.Red : Pens.Black;
+                g.DrawEllipse(borderPen, cx - 12, cy - 12, 24, 24);
+
+                // 数字（未観測時のみ表示）
+                if (!stone.IsObserved)
                 {
                     var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                     g.DrawString(stone.Probability.ToString(), new Font("Arial", 10, FontStyle.Bold), textBrush, cx, cy, sf);
                 }
             }
+
         }
+
 
         protected override void OnMouseClick(MouseEventArgs e)
         {
             int row = (e.Y - Margin + CellSize / 2) / CellSize;
             int col = (e.X - Margin + CellSize / 2) / CellSize;
+
+            if (isLocked) return;
 
             if (row >= 0 && row < GridSize && col >= 0 && col < GridSize)
             {
@@ -195,7 +185,8 @@ namespace QuantumGomoku
                 int roll = random.Next(1, 101); // 1〜100
                 bool becomesBlack = roll <= stone.Probability;
                 stone.Color = becomesBlack ? "black" : "white";
-                stone.Probability = 100; // 表示上のフラグとして使う
+                stone.Probability = 100;
+                stone.IsObserved = true;
             }
 
             isObserved = true;
@@ -214,5 +205,89 @@ namespace QuantumGomoku
             isObserved = false;
             Invalidate();
         }
+
+        // 5つ並び判定ロジック
+        public bool HasFiveInARow(string color)
+        {
+            int[,] directions = new int[,] { { 1, 0 }, { 0, 1 }, { 1, 1 }, { 1, -1 } }; // 横, 縦, 斜め右下, 斜め左下
+
+            foreach (var stone in stones.Where(s => s.Probability == 100 && s.Color == color))
+            {
+                foreach (int d in Enumerable.Range(0, 4))
+                {
+                    int dx = directions[d, 0], dy = directions[d, 1];
+                    List<QuantumStone> matched = new List<QuantumStone> { stone };
+
+                    for (int step = 1; step < 5; step++)
+                    {
+                        int nx = stone.Col + dx * step;
+                        int ny = stone.Row + dy * step;
+
+                        var nextStone = stones.FirstOrDefault(s =>
+                            s.Col == nx && s.Row == ny && s.Color == color && s.Probability == 100);
+
+                        if (nextStone != null)
+                            matched.Add(nextStone);
+                        else
+                            break;
+                    }
+
+                    if (matched.Count >= 5)
+                    {
+                        foreach (var s in matched)
+                            s.IsWinningStone = true;  // 赤枠表示用
+
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+
+        public void LockBoard()
+        {
+            isLocked = true;
+        }
+
+        // 勝利判定ロジック内で「5個並びの石」にフラグを立てる
+        public void MarkWinningStones(string color)
+        {
+            foreach (var stone in stones)
+                stone.IsWinningStone = false; // 一旦すべてリセット
+
+            int[,] directions = new int[,] { { 1, 0 }, { 0, 1 }, { 1, 1 }, { 1, -1 } };
+
+            foreach (var stone in stones.Where(s => s.Probability == 100 && s.Color == color))
+            {
+                for (int d = 0; d < 4; d++)
+                {
+                    int dx = directions[d, 0], dy = directions[d, 1];
+                    var matched = new List<QuantumStone> { stone };
+
+                    for (int step = 1; step < 5; step++)
+                    {
+                        int nx = stone.Col + dx * step;
+                        int ny = stone.Row + dy * step;
+                        var match = stones.FirstOrDefault(s =>
+                            s.Col == nx && s.Row == ny && s.Color == color && s.Probability == 100);
+                        if (match != null)
+                            matched.Add(match);
+                        else
+                            break;
+                    }
+
+                    if (matched.Count >= 5)
+                    {
+                        foreach (var s in matched)
+                            s.IsWinningStone = true;
+                        return; // 最初の5連だけ赤くする
+                    }
+                }
+            }
+        }
+
+
     }
 }

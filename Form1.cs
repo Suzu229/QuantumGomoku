@@ -21,6 +21,8 @@ namespace QuantumGomoku
         private Timer fadeTimer;
         private float messageOpacity = 1.0f;
 
+        private bool isLocked = false;
+
         public Form1()
         {
             InitializeComponent();
@@ -94,6 +96,7 @@ namespace QuantumGomoku
 
         private void btnObserve_Click(object sender, EventArgs e)
         {
+
             bool isPlayer1Turn = gomokuBoard.IsPlayer1Turn;
             int remaining = isPlayer1Turn ? player1Observations : player2Observations;
 
@@ -110,6 +113,26 @@ namespace QuantumGomoku
             {
                 ShowMessage("No observations remaining for this player!");
             }
+
+            // 勝敗チェック
+            bool blackWin = gomokuBoard.HasFiveInARow("black");
+            bool whiteWin = gomokuBoard.HasFiveInARow("white");
+
+            string winner = null;
+            if (blackWin && !whiteWin) winner = "Player 1 (Black)";
+            else if (whiteWin && !blackWin) winner = "Player 2 (White)";
+            else if (blackWin && whiteWin)
+                winner = isPlayer1Turn ? "Player 1 (Black)" : "Player 2 (White)";
+
+            if (winner != null)
+            {
+                ShowMessage($"{winner} wins!");
+                gomokuBoard.MarkWinningStones(winner.Contains("Black") ? "black" : "white");
+                gomokuBoard.LockBoard();               // ← 盤面ロック
+                btnObserve.Enabled = false;            // ボタンも無効化
+                btnCancelObservation.Enabled = false;
+            }
+
         }
 
         private void btnCancelObservation_Click(object sender, EventArgs e)
@@ -139,6 +162,8 @@ namespace QuantumGomoku
             messageOpacity = 1.0f;
             lblMessage.ForeColor = Color.Black;
             fadeTimer.Start();
+
+            fadeTimer.Stop(); // 勝利などではタイマー止めて常に表示
         }
 
         private void FadeTimer_Tick(object sender, EventArgs e)

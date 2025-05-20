@@ -13,6 +13,8 @@ namespace QuantumGomoku
         public int Col { get; set; }
         public string Color { get; set; } // "black" or "white"
         public int Probability { get; set; } // 10〜90など
+        public bool IsWinningStone { get; set; } = false;
+        public bool IsObserved { get; set; } = false;
 
         public QuantumStone(int row, int col, string color, int probability)
         {

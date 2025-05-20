@@ -12,6 +12,10 @@ namespace QuantumGomoku
         private bool isObserved = false;
         private Random random = new Random();
 
+        public bool IsPlayer1Turn => isPlayer1Turn;
+        public bool Player1NextIs90 => player1NextIs90;
+        public bool Player2NextIs10 => player2NextIs10;
+
 
         private bool isPlayer1Turn = true;
         private bool player1NextIs90 = true;
@@ -165,9 +169,13 @@ namespace QuantumGomoku
                     player2NextIs10 = !player2NextIs10;
                 }
 
+                // ターン交代
                 isPlayer1Turn = !isPlayer1Turn;
-                Invalidate();
 
+                // ラベル更新（Form1 に通知）
+                ((Form1)this.FindForm()).UpdateStatus(isPlayer1Turn, player1NextIs90, player2NextIs10);
+
+                Invalidate();
             }
         }
 

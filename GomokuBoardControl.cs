@@ -129,44 +129,50 @@ namespace QuantumGomoku
                     g.DrawString(stone.Probability.ToString(), new Font("Arial", 10, FontStyle.Bold), textBrush, cx, cy, sf);
                 }
             }
-
         }
-
 
         protected override void OnMouseClick(MouseEventArgs e)
         {
+            if (isLocked) return;
+
             int row = (e.Y - Margin + CellSize / 2) / CellSize;
             int col = (e.X - Margin + CellSize / 2) / CellSize;
 
-            if (isLocked) return;
+            // 範囲外なら無視
+            if (row < 0 || row >= GridSize || col < 0 || col >= GridSize)
+                return;
 
-            if (row >= 0 && row < GridSize && col >= 0 && col < GridSize)
+            // 既に石が置かれている場所は無効
+            if (stones.Any(s => s.Row == row && s.Col == col))
+                return;
+
+            // すでに今ターンに置いていたら無効（Form1側で制御）
+            var form = this.FindForm() as Form1;
+            if (form != null && form.hasPlacedStone)
+                return;
+
+            // 石を置く
+            if (isPlayer1Turn)
             {
-                // すでに石があるかを確認（簡易版）
-                if (stones.Any(s => s.Row == row && s.Col == col))
-                    return;
-
-                if (isPlayer1Turn)
-                {
-                    int prob = player1NextIs90 ? 90 : 70;
-                    stones.Add(new QuantumStone(row, col, "black", prob));
-                    player1NextIs90 = !player1NextIs90; // 次は逆の値に
-                }
-                else
-                {
-                    int prob = player2NextIs10 ? 10 : 30;
-                    stones.Add(new QuantumStone(row, col, "white", prob));
-                    player2NextIs10 = !player2NextIs10;
-                }
-
-                // ターン交代
-                isPlayer1Turn = !isPlayer1Turn;
-
-                // ラベル更新（Form1 に通知）
-                ((Form1)this.FindForm()).UpdateStatus(isPlayer1Turn, player1NextIs90, player2NextIs10);
-
-                Invalidate();
+                int prob = player1NextIs90 ? 90 : 70;
+                stones.Add(new QuantumStone(row, col, "black", prob));
+                player1NextIs90 = !player1NextIs90;
             }
+            else
+            {
+                int prob = player2NextIs10 ? 10 : 30;
+                stones.Add(new QuantumStone(row, col, "white", prob));
+                player2NextIs10 = !player2NextIs10;
+            }
+
+            if (form != null)
+            {
+                form.hasPlacedStone = true;
+                form.EnableObservationButtons(); // ボタンを有効にする！
+            }
+
+            // 表示更新
+            Invalidate();
         }
 
         // 観測を実行する
@@ -297,6 +303,16 @@ namespace QuantumGomoku
             isLocked = false;
             isObserved = false;
             Invalidate();
+        }
+
+        public void TogglePlayerTurn()
+        {
+            isPlayer1Turn = !isPlayer1Turn;
+        }
+
+        public void UnlockBoard()
+        {
+            isLocked = false;
         }
 
     }

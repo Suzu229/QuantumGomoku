@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Runtime.CompilerServices;
 using System.Windows.Forms;
 
 namespace QuantumGomoku
@@ -19,10 +20,11 @@ namespace QuantumGomoku
         private Button btnRestart;
 
         private Label lblMessage;
-        private Timer fadeTimer;
-        private float messageOpacity = 1.0f;
 
         private bool isLocked = false;
+        public bool hasPlacedStone { get; set; } = false;
+
+        private Button btnSkip;
 
         public Form1()
         {
@@ -62,6 +64,7 @@ namespace QuantumGomoku
             btnObserve.Location = new Point(lblTurnInfo.Left, lblObservationLeft.Bottom + 20);
             btnObserve.Click += btnObserve_Click;
             this.Controls.Add(btnObserve);
+            btnObserve.Enabled = false;
 
             btnCancelObservation = new Button();
             btnCancelObservation.Text = "Cancel Observation";
@@ -69,31 +72,25 @@ namespace QuantumGomoku
             btnCancelObservation.Location = new Point(btnObserve.Left, btnObserve.Bottom + 10);
             btnCancelObservation.Click += btnCancelObservation_Click;
             this.Controls.Add(btnCancelObservation);
+            btnCancelObservation.Enabled = false;
 
-            // ───────── ラベルメッセージ（オプション） ─────────
+            btnSkip = new Button();
+            btnSkip.Text = "Skip";
+            btnSkip.Size = new Size(120, 30);
+            btnSkip.Location = new Point(btnCancelObservation.Left, btnCancelObservation.Bottom + 10);
+            btnSkip.Click += btnSkip_Click;
+            btnSkip.Enabled = false;
+            this.Controls.Add(btnSkip);
+
+            // ───────── メッセージ表示 ─────────
             lblMessage = new Label();
             lblMessage.Text = "";
             lblMessage.Font = new Font("Arial", 10, FontStyle.Bold);
             lblMessage.BackColor = Color.LightYellow;
             lblMessage.AutoSize = true;
             lblMessage.Visible = false;
-            lblMessage.Location = new Point(lblTurnInfo.Left, btnCancelObservation.Bottom + 20);
+            lblMessage.Location = new Point(lblTurnInfo.Left, btnSkip.Bottom + 20);
             this.Controls.Add(lblMessage);
-
-            fadeTimer = new Timer();
-            fadeTimer.Interval = 100;
-            fadeTimer.Tick += FadeTimer_Tick;
-
-            // ───────── フォームサイズを自動調整 ─────────
-            int rightPanelRight = btnCancelObservation.Right;
-            int totalWidth = rightPanelRight + 50;
-            int totalHeight = Math.Max(gomokuBoard.Bottom, lblMessage.Bottom) + 30;
-            this.ClientSize = new Size(totalWidth, totalHeight);
-
-
-            // ───────── フォーム設定 ─────────
-            this.FormBorderStyle = FormBorderStyle.FixedSingle;
-            this.MaximizeBox = false;
 
             btnRestart = new Button();
             btnRestart.Text = "Restart";
@@ -102,55 +99,70 @@ namespace QuantumGomoku
             btnRestart.Click += BtnRestart_Click;
             btnRestart.Visible = false;
             this.Controls.Add(btnRestart);
+
+            // ───────── フォームサイズを自動調整 ─────────
+            int rightPanelRight = btnCancelObservation.Right;
+            int totalWidth = rightPanelRight + 50;
+            int totalHeight = Math.Max(gomokuBoard.Bottom, btnRestart.Bottom) + 30;
+            this.ClientSize = new Size(totalWidth, totalHeight);
+
+            // ───────── フォーム設定 ─────────
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
         }
+
 
         private void btnObserve_Click(object sender, EventArgs e)
         {
+            if (!hasPlacedStone) return;
 
-            bool isPlayer1Turn = gomokuBoard.IsPlayer1Turn;
-            int remaining = isPlayer1Turn ? player1Observations : player2Observations;
+            gomokuBoard.ObserveStones();
 
-            if (remaining > 0)
-            {
-                gomokuBoard.ObserveStones();
-
-                if (isPlayer1Turn) player1Observations--;
-                else player2Observations--;
-
-                UpdateStatus(gomokuBoard.IsPlayer1Turn, gomokuBoard.Player1NextIs90, gomokuBoard.Player2NextIs10);
-            }
+            // 観測残数を減らす
+            if (gomokuBoard.IsPlayer1Turn)
+                player1Observations--;
             else
-            {
-                ShowMessage("No observations remaining for this player!");
-            }
+                player2Observations--;
 
-            // 勝敗チェック
-            bool blackWin = gomokuBoard.HasFiveInARow("black");
-            bool whiteWin = gomokuBoard.HasFiveInARow("white");
+            // ボタン状態を調整
+            btnObserve.Enabled = false;              // 押せないように
+            btnCancelObservation.Enabled = true;     // キャンセルだけ有効
+            btnSkip.Enabled = false;                 // スキップは無効に
 
-            string winner = null;
-            if (blackWin && !whiteWin) winner = "Player 1 (Black)";
-            else if (whiteWin && !blackWin) winner = "Player 2 (White)";
-            else if (blackWin && whiteWin)
-                winner = isPlayer1Turn ? "Player 1 (Black)" : "Player 2 (White)";
+            // 状態更新（ターン交代や勝敗判定はキャンセル後に）
+            UpdateStatus(
+                gomokuBoard.IsPlayer1Turn,
+                gomokuBoard.Player1NextIs90,
+                gomokuBoard.Player2NextIs10
+            );
 
-            if (winner != null)
-            {
-                ShowMessage($"{winner} wins!");
-                gomokuBoard.MarkWinningStones(winner.Contains("Black") ? "black" : "white");
-                gomokuBoard.LockBoard();               // ← 盤面ロック
-                btnObserve.Enabled = false;            // ボタンも無効化
-                btnCancelObservation.Enabled = false;
-
-                btnRestart.Visible = true;
-            }
-
+            CheckWinner();
         }
+
+
 
         private void btnCancelObservation_Click(object sender, EventArgs e)
         {
-            gomokuBoard.CancelObservation();
+            gomokuBoard.CancelObservation(); // 石の状態を戻す
+
+            // ターンを交代する
+            gomokuBoard.TogglePlayerTurn();
+
+            // ターンを初期化
+            hasPlacedStone = false;
+            btnObserve.Enabled = false;
+            btnSkip.Enabled = false;
+
+            // 状態を更新
+            UpdateStatus(
+                gomokuBoard.IsPlayer1Turn,
+                gomokuBoard.Player1NextIs90,
+                gomokuBoard.Player2NextIs10
+            );
+
+            btnCancelObservation.Enabled = false;
         }
+
 
         public void UpdateStatus(bool isPlayer1Turn, bool player1NextIs90, bool player2NextIs10)
         {
@@ -171,25 +183,7 @@ namespace QuantumGomoku
         {
             lblMessage.Text = message;
             lblMessage.Visible = true;
-            messageOpacity = 1.0f;
             lblMessage.ForeColor = Color.Black;
-            fadeTimer.Start();
-
-            fadeTimer.Stop(); // 勝利などではタイマー止めて常に表示
-        }
-
-        private void FadeTimer_Tick(object sender, EventArgs e)
-        {
-            messageOpacity -= 0.1f;
-            if (messageOpacity <= 0)
-            {
-                fadeTimer.Stop();
-                lblMessage.Visible = false;
-            }
-            else
-            {
-                lblMessage.ForeColor = Color.FromArgb((int)(255 * messageOpacity), Color.Black);
-            }
         }
 
         private void BtnRestart_Click(object sender, EventArgs e)
@@ -201,11 +195,66 @@ namespace QuantumGomoku
 
             // UI更新
             UpdateStatus(true, true, true); // Player1から再開
-            btnObserve.Enabled = true;
-            btnCancelObservation.Enabled = true;
+            btnObserve.Enabled = false;
+            btnCancelObservation.Enabled = false;
             btnRestart.Visible = false;
             lblMessage.Visible = false;
+
+            hasPlacedStone = false;
+            gomokuBoard.UnlockBoard(); 
         }
 
+        // Skip ボタンクリック処理
+        private void btnSkip_Click(object sender, EventArgs e)
+        {
+            if (!hasPlacedStone) return;
+
+            EndTurn();
+        }
+
+        private void EndTurn()
+        {
+            hasPlacedStone = false;
+            btnObserve.Enabled = false;
+            btnSkip.Enabled = false;
+
+            // ターン交代！
+            gomokuBoard.TogglePlayerTurn();
+
+            // ステータスを更新（player1NextIs90 なども反映）
+            UpdateStatus(
+                gomokuBoard.IsPlayer1Turn,
+                gomokuBoard.Player1NextIs90,
+                gomokuBoard.Player2NextIs10
+            );
+        }
+
+        public void EnableObservationButtons()
+        {
+            btnObserve.Enabled = true;
+            btnSkip.Enabled = true;
+        }
+
+        private void CheckWinner()
+        {
+            bool blackWin = gomokuBoard.HasFiveInARow("black");
+            bool whiteWin = gomokuBoard.HasFiveInARow("white");
+
+            string winner = null;
+            if (blackWin && !whiteWin) winner = "Player 1 (Black)";
+            else if (whiteWin && !blackWin) winner = "Player 2 (White)";
+            else if (blackWin && whiteWin)
+                winner = gomokuBoard.IsPlayer1Turn ? "Player 1 (Black)" : "Player 2 (White)";
+
+            if (winner != null)
+            {
+                ShowMessage($"{winner} wins!");
+                gomokuBoard.LockBoard();
+                btnObserve.Enabled = false;
+                btnCancelObservation.Enabled = false;
+                btnSkip.Enabled = false;
+                btnRestart.Visible = true;
+            }
+        }
     }
 }

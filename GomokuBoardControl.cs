@@ -8,6 +8,11 @@ namespace QuantumGomoku
 {
     public partial class GomokuBoardControl : UserControl
     {
+        private List<QuantumStone> originalStonesBackup = new List<QuantumStone>();
+        private bool isObserved = false;
+        private Random random = new Random();
+
+
         private bool isPlayer1Turn = true;
         private bool player1NextIs90 = true;
         private bool player2NextIs10 = true;
@@ -100,17 +105,25 @@ namespace QuantumGomoku
                 Color stoneColor;
                 Brush textBrush;
 
-                if (stone.Color == "black")
+                if (stone.Probability == 100) // 観測中（仮確定）なら真っ黒／真っ白
                 {
-                    stoneColor = stone.Probability == 90 ? Color.Black :
-                                 stone.Probability == 70 ? Color.DimGray : Color.DarkGray;
-                    textBrush = Brushes.White;
+                    stoneColor = (stone.Color == "black") ? Color.Black : Color.White;
+                    textBrush = (stone.Color == "black") ? Brushes.White : Brushes.Black;
                 }
-                else // white
+                else // 通常時：確率に応じた濃さ
                 {
-                    stoneColor = stone.Probability == 30 ? Color.LightGray :
-                                 stone.Probability == 10 ? Color.WhiteSmoke : Color.White;
-                    textBrush = Brushes.Black;
+                    if (stone.Color == "black")
+                    {
+                        stoneColor = stone.Probability == 90 ? Color.Black :
+                                     stone.Probability == 70 ? Color.DimGray : Color.DarkGray;
+                        textBrush = Brushes.White;
+                    }
+                    else
+                    {
+                        stoneColor = stone.Probability == 30 ? Color.LightGray :
+                                     stone.Probability == 10 ? Color.WhiteSmoke : Color.White;
+                        textBrush = Brushes.Black;
+                    }
                 }
 
                 Brush stoneBrush = new SolidBrush(stoneColor);
@@ -119,12 +132,13 @@ namespace QuantumGomoku
                 g.FillEllipse(stoneBrush, cx - 12, cy - 12, 24, 24);
                 g.DrawEllipse(Pens.Black, cx - 12, cy - 12, 24, 24);
 
-                // 数字を描画
-                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString(stone.Probability.ToString(), new Font("Arial", 10, FontStyle.Bold), textBrush, cx, cy, sf);
+                // 観測中は数字を消す（probability = 100 のとき）
+                if (stone.Probability != 100)
+                {
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString(stone.Probability.ToString(), new Font("Arial", 10, FontStyle.Bold), textBrush, cx, cy, sf);
+                }
             }
-
-
         }
 
         protected override void OnMouseClick(MouseEventArgs e)
@@ -157,6 +171,40 @@ namespace QuantumGomoku
             }
         }
 
+        // 観測を実行する
+        public void ObserveStones()
+        {
+            if (isObserved) return;
 
+            // 元の状態を保存
+            originalStonesBackup = stones
+                .Select(s => new QuantumStone(s.Row, s.Col, s.Color, s.Probability))
+                .ToList();
+
+            // 色を確率で仮確定（色だけ変える）
+            foreach (var stone in stones)
+            {
+                int roll = random.Next(1, 101); // 1〜100
+                bool becomesBlack = roll <= stone.Probability;
+                stone.Color = becomesBlack ? "black" : "white";
+                stone.Probability = 100; // 表示上のフラグとして使う
+            }
+
+            isObserved = true;
+            Invalidate();
+        }
+
+        // 数字に戻す
+        public void CancelObservation()
+        {
+            if (!isObserved) return;
+
+            stones = originalStonesBackup
+                .Select(s => new QuantumStone(s.Row, s.Col, s.Color, s.Probability))
+                .ToList();
+
+            isObserved = false;
+            Invalidate();
+        }
     }
 }

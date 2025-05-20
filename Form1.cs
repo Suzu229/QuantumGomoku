@@ -16,6 +16,7 @@ namespace QuantumGomoku
         private GomokuBoardControl gomokuBoard;
         private Button btnObserve;
         private Button btnCancelObservation;
+        private Button btnRestart;
 
         private Label lblMessage;
         private Timer fadeTimer;
@@ -89,9 +90,18 @@ namespace QuantumGomoku
             int totalHeight = Math.Max(gomokuBoard.Bottom, lblMessage.Bottom) + 30;
             this.ClientSize = new Size(totalWidth, totalHeight);
 
+
             // ───────── フォーム設定 ─────────
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
+
+            btnRestart = new Button();
+            btnRestart.Text = "Restart";
+            btnRestart.Size = new Size(120, 30);
+            btnRestart.Location = new Point(btnObserve.Left, lblMessage.Bottom + 20);
+            btnRestart.Click += BtnRestart_Click;
+            btnRestart.Visible = false;
+            this.Controls.Add(btnRestart);
         }
 
         private void btnObserve_Click(object sender, EventArgs e)
@@ -131,6 +141,8 @@ namespace QuantumGomoku
                 gomokuBoard.LockBoard();               // ← 盤面ロック
                 btnObserve.Enabled = false;            // ボタンも無効化
                 btnCancelObservation.Enabled = false;
+
+                btnRestart.Visible = true;
             }
 
         }
@@ -179,5 +191,21 @@ namespace QuantumGomoku
                 lblMessage.ForeColor = Color.FromArgb((int)(255 * messageOpacity), Color.Black);
             }
         }
+
+        private void BtnRestart_Click(object sender, EventArgs e)
+        {
+            // 初期化
+            player1Observations = 5;
+            player2Observations = 5;
+            gomokuBoard.ResetBoard();
+
+            // UI更新
+            UpdateStatus(true, true, true); // Player1から再開
+            btnObserve.Enabled = true;
+            btnCancelObservation.Enabled = true;
+            btnRestart.Visible = false;
+            lblMessage.Visible = false;
+        }
+
     }
 }

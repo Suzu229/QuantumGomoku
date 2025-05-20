@@ -288,6 +288,16 @@ namespace QuantumGomoku
             }
         }
 
+        public void ResetBoard()
+        {
+            stones.Clear();
+            isPlayer1Turn = true;
+            player1NextIs90 = true;
+            player2NextIs10 = true;
+            isLocked = false;
+            isObserved = false;
+            Invalidate();
+        }
 
     }
 }
